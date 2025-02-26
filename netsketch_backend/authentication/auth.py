@@ -11,7 +11,7 @@ def authenticate(email, password):
     except User.DoesNotExist:
         return None
 
-def createUser(username, email, password, thumbnail):
+def createUser(username, email, password):
     try:
         if User.objects.filter(email=email).exists():
             return False, 'El usuario ya existe.'
@@ -22,7 +22,7 @@ def createUser(username, email, password, thumbnail):
             password=password,
             username=username
         )
-        
+
         return True, f'Usuario registrado correctamente. Su identificador es: {user.identifier}'
     except ValidationError as e:
         return False, f'Validation error: {e.messages}'

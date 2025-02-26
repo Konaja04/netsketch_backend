@@ -14,6 +14,12 @@ authPatterns = [
 ]
 
 urlpatterns += authPatterns 
+#NETWORK
+network_patterns = [
+    path("network",NetworkView.as_view(), name ='network')
+]
+urlpatterns += network_patterns 
+
 
 
 

@@ -1,4 +1,12 @@
+from django.http import HttpResponse
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.exceptions import ValidationError
+from netsketch_backend.authentication.auth import *
 
 #AUTH
 class RegisterView(APIView):  
@@ -6,13 +14,14 @@ class RegisterView(APIView):
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
-        imagen =  request.data.get("thumbnail")
-        thumbnail_path = create_or_edit_image(imagen, 'create')
         try:
-            success, msg = createUser(username=username, email=email, password= password, thumbnail = thumbnail_path)
-            return Response({'success': success, 'data':{
-                "message": msg
-            }}, status=status.HTTP_200_OK)
+            success, msg = createUser(username=username, email=email, password= password)
+            return Response({
+                'success': success, 
+                'data':{
+                    "message": msg
+                }
+            }, status=status.HTTP_200_OK)
         except ValidationError as e:
             return Response({'success': False, 'data': {"error": e.messages}}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
