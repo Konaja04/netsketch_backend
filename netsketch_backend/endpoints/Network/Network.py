@@ -23,37 +23,57 @@ class NetworkView(APIView):
         dispositivos = [
             {
                 "id": d.pk,
-                "width": d.width,
-                "height": d.height,
-                "image": d.image,
-                "type": d.type,
-                "x": d.x,
-                "y": d.y,
+                "width": d.width or "",  
+                "height": d.height or "",  
+                "image": d.image or "",  
+                "type": d.type or "",  
+                "x": d.x or "",  
+                "y": d.y or "",  
                 "configuraciones": {
                     "interfaces": [
-                        {"nombre": i.name, "ip": i.ip, "mascara": i.mask, "gateway": i.gateway}
+                        {
+                            "nombre": i.name or "", 
+                            "ip": i.ip or "", 
+                            "mascara": i.mask or "", 
+                            "gateway": i.gateway or ""
+                        }
                         for i in d.interfaces.all()
                     ],
                     "tabla": [
-                        {"destino": t.destiny, "destinoMascara": t.destiny_mask, "salto": t.jump}
+                        {
+                            "destino": t.destiny or "", 
+                            "destinoMascara": t.destiny_mask or "", 
+                            "salto": t.jump or ""
+                        }
                         for t in d.routing_tables.all()
                     ]
                 }
             }
             for d in network.devices.all()
         ]
+        
         cables = [
             {
-                "from": {"id": c.from_device.pk, "interface": c.from_interface, "x": c.from_x, "y": c.from_y},
-                "to": {"id": c.to_device.pk, "interface": c.to_interface, "x": c.to_x, "y": c.to_y},
-                "peso": c.weight
+                "from": {
+                    "id": c.from_device.pk, 
+                    "interface": c.from_interface or "", 
+                    "x": c.from_x or "", 
+                    "y": c.from_y or ""
+                },
+                "to": {
+                    "id": c.to_device.pk, 
+                    "interface": c.to_interface or "", 
+                    "x": c.to_x or "", 
+                    "y": c.to_y or ""
+                },
+                "peso": c.weight or ""
             }
             for c in Cable.objects.filter(from_device__network=network)
         ]
         
         data = {
             "id": network.pk,
-            "nombre": network.name,
+            "nombre": network.name or "",
             "dispositivos": dispositivos,
             "cables": cables
         }
@@ -62,6 +82,7 @@ class NetworkView(APIView):
             "success": True,
             "data": data
         }, status=status.HTTP_200_OK)
+
     
     def post(self, request):
         name = request.data.get("nombre")
