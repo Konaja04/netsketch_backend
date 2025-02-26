@@ -1,0 +1,43 @@
+# Entornos virtuales
+venv/
+env/
+__pycache__/
+
+# Archivos de configuración de sistema
+*.py[cod]
+*.log
+*.pot
+*.mo
+
+# Archivos temporales y de caché
+*.~*
+*.swp
+*.swo
+*.DS_Store
+*.idea/
+*.vscode/
+*.egg-info/
+
+# Archivos de configuración y credenciales
+*.env
+.env
+config/
+settings_local.py
+
+# Archivos estáticos y de migración
+/staticfiles/
+/media/
+/migrations/
+
+# Archivos de compilación y empaquetado
+dist/
+build/
+*.egg
+
+# Archivos de dependencias y control de versiones
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Archivos de Docker (si aplican)
+docker-compose.override.yml
