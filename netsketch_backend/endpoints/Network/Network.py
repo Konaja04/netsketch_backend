@@ -18,7 +18,12 @@ class NetworkView(APIView):
         try:
             network = Network.objects.get(id=pk, user=request.user)
         except Network.DoesNotExist:
-            return Response({"error": "Red no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                "success": False,
+                "data": {
+                    "error": "RED NO ENCONTRADA"
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         dispositivos = [
             {
@@ -86,9 +91,6 @@ class NetworkView(APIView):
     
     def post(self, request):
         name = request.data.get("nombre")
-        devices_data = request.data.get("dispositivos", [])
-        cables_data = request.data.get("cables", [])
-        
         if not name:
             return Response({
                 "success": False,
@@ -97,61 +99,115 @@ class NetworkView(APIView):
                 }
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        red = Network.objects.create(user=request.user, name=name)
-        devices_map = {}
-
-        for d in devices_data:
-            device = Device.objects.create(
-                network=red, 
-                width=d.get("width", 0), 
-                height=d.get("height", 0), 
-                image=d.get("image", ""), 
-                type=d.get("type", ""), 
-                x=d.get("x", 0), 
-                y=d.get("y", 0)
-            )
-            devices_map[d["id"]] = device
-
-            configuraciones = d.get("configuraciones", [{}])  
-            if isinstance(configuraciones, list) and len(configuraciones) > 0:
-                configuraciones = configuraciones[0] 
-
-            interfaces = configuraciones.get("interfaces", []) if isinstance(configuraciones, dict) else []
-            for i in interfaces:
-                print(i)
-                Interface.objects.create(
-                    device=device, 
-                    name=i.get("nombre", ""), 
-                    ip=i.get("ip", ""), 
-                    mask=i.get("mascara", ""), 
-                    gateway=i.get("gateway", "")
-                )
-            tabla = configuraciones.get("tabla", []) if isinstance(configuraciones, dict) else []
-            for t in tabla:
-                print(t)
-                RoutingTable.objects.create(
-                    device=device, 
-                    destiny=t.get("destino", ""), 
-                    destiny_mask=t.get("destinoMascara", ""), 
-                    jump=t.get("salto", "")
-                )
-
-        for c in cables_data:
-            Cable.objects.create(
-                from_device=devices_map[c["from"]["id"]], 
-                from_interface=c["from"]["interface"], 
-                from_x=c["from"]["x"], 
-                from_y=c["from"]["y"],
-                to_device=devices_map[c["to"]["id"]], 
-                to_interface=c["to"]["interface"], 
-                to_x=c["to"]["x"], 
-                to_y=c["to"]["y"],
-                weight=c.get("peso", 0)
-            )
+        Network.objects.create(user=request.user, name=name)
 
         return Response({
             "success": True, 
             "data": {
                 "message": "Red creada correctamente"
+            }
+        }, status=status.HTTP_201_CREATED)
+    
+    
+
+    def update(self, request):
+        network_id = request.GET.get("id")
+        if not network_id:
+            return Response({
+                "success": False,
+                "data": {
+                    "error": "Falta el ID de la red"
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            network = Network.objects.get(id=network_id, user=request.user)
+        except Network.DoesNotExist:
+            return Response({
+                "success": False,
+                "data": {
+                    "error": "RED NO ENCONTRADA"
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        Device.objects.filter(network=network).delete()
+        Cable.objects.filter(from_device__network=network).delete()
+
+        devices_data = request.data.get("dispositivos", [])
+        cables_data = request.data.get("cables", [])
+        devices_map = {}
+
+        new_devices = []
+        for d in devices_data:
+            new_device = Device(
+                network=network,
+                width=d.get("width", 0),
+                height=d.get("height", 0),
+                image=d.get("image", ""),
+                type=d.get("type", ""),
+                x=d.get("x", 0),
+                y=d.get("y", 0),
+            )
+            new_devices.append(new_device)
+
+        devices = Device.objects.bulk_create(new_devices)
+
+
+        for index, d in enumerate(devices_data):
+            devices_map[d["id"]] = devices[index]
+
+ 
+        new_interfaces = []
+        new_routing_tables = []
+
+        for d, device in zip(devices_data, devices):
+            configuraciones = d.get("configuraciones", [{}])
+            if isinstance(configuraciones, list) and len(configuraciones) > 0:
+                configuraciones = configuraciones[0] 
+
+ 
+            interfaces = configuraciones.get("interfaces", []) if isinstance(configuraciones, dict) else []
+            for i in interfaces:
+                new_interfaces.append(Interface(
+                    device=device,
+                    name=i.get("nombre", ""),
+                    ip=i.get("ip", ""),
+                    mask=i.get("mascara", ""),
+                    gateway=i.get("gateway", ""),
+                ))
+
+
+            tabla = configuraciones.get("tabla", []) if isinstance(configuraciones, dict) else []
+            for t in tabla:
+                new_routing_tables.append(RoutingTable(
+                    device=device,
+                    destiny=t.get("destino", ""),
+                    destiny_mask=t.get("destinoMascara", ""),
+                    jump=t.get("salto", ""),
+                ))
+
+        Interface.objects.bulk_create(new_interfaces)
+        RoutingTable.objects.bulk_create(new_routing_tables)
+
+        new_cables = []
+        for c in cables_data:
+            new_cables.append(Cable(
+                from_device=devices_map[c["from"]["id"]],
+                from_interface=c["from"]["interface"],
+                from_x=c["from"]["x"],
+                from_y=c["from"]["y"],
+                to_device=devices_map[c["to"]["id"]],
+                to_interface=c["to"]["interface"],
+                to_x=c["to"]["x"],
+                to_y=c["to"]["y"],
+                weight=c.get("peso", 0),
+            ))
+
+        Cable.objects.bulk_create(new_cables)
+
+        return Response({
+            "success": True, 
+            "data": {
+                "message": "Red actualizada correctamente"
             }
         }, status=status.HTTP_201_CREATED)
