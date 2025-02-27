@@ -54,8 +54,32 @@ class NetworkView(APIView):
                     ]
                 }
             }
-            for d in network.devices.all()
+            for d in network.devices.all() if d.type != 'pc'
         ]
+
+        pc = [
+            {
+                "id": d.pk,
+                "width": d.width or "",  
+                "height": d.height or "",  
+                "image": d.image or "",  
+                "type": d.type or "",  
+                "x": d.x or "",  
+                "y": d.y or "",  
+                "configuraciones": [
+                        {
+                            "ip": i.ip or "", 
+                            "mascara": i.mask or "", 
+                            "gateway": i.gateway or ""
+                        }
+                        for i in d.interfaces.all()
+                    ][0]
+                
+            }
+            for d in network.devices.all() if d.type == 'pc'
+        ]
+
+        dispositivos += pc
         
         cables = [
             {
@@ -109,8 +133,28 @@ class NetworkView(APIView):
         }, status=status.HTTP_201_CREATED)
     
     
+    def delete(self, request):
+        pk= request.GET.get("id")
+        print("AIOSJDFBIJAWBDIJHAWBD", pk)
+        try:
+            network = Network.objects.get(id=pk, user=request.user)
+        except Network.DoesNotExist:
+            return Response({
+                "success": False,
+                "data": {
+                    "error": "RED NO ENCONTRADA"
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        network.delete()
+        return Response({
+            "success": True, 
+            "data": {
+                "message": "Red eliminada correctamente"
+            }
+        }, status=status.HTTP_201_CREATED)
 
-    def update(self, request):
+    def put(self, request):
         network_id = request.GET.get("id")
         if not network_id:
             return Response({
@@ -165,26 +209,37 @@ class NetworkView(APIView):
             if isinstance(configuraciones, list) and len(configuraciones) > 0:
                 configuraciones = configuraciones[0] 
 
- 
-            interfaces = configuraciones.get("interfaces", []) if isinstance(configuraciones, dict) else []
-            for i in interfaces:
+            tipo = d.get("type")
+            if tipo == 'pc':
+                print(configuraciones)
                 new_interfaces.append(Interface(
                     device=device,
-                    name=i.get("nombre", ""),
-                    ip=i.get("ip", ""),
-                    mask=i.get("mascara", ""),
-                    gateway=i.get("gateway", ""),
+                    name=configuraciones.get("nombre", ""),
+                    ip=configuraciones.get("ip", ""),
+                    mask=configuraciones.get("mascara", ""),
+                    gateway=configuraciones.get("gateway", ""),
                 ))
+            else:
+                interfaces = configuraciones.get("interfaces", []) if isinstance(configuraciones, dict) else []
+                for i in interfaces:
+                    print(i)
+                    new_interfaces.append(Interface(
+                        device=device,
+                        name=i.get("nombre", ""),
+                        ip=i.get("ip", ""),
+                        mask=i.get("mascara", ""),
+                        gateway=i.get("gateway", ""),
+                    ))
 
 
-            tabla = configuraciones.get("tabla", []) if isinstance(configuraciones, dict) else []
-            for t in tabla:
-                new_routing_tables.append(RoutingTable(
-                    device=device,
-                    destiny=t.get("destino", ""),
-                    destiny_mask=t.get("destinoMascara", ""),
-                    jump=t.get("salto", ""),
-                ))
+                tabla = configuraciones.get("tabla", []) if isinstance(configuraciones, dict) else []
+                for t in tabla:
+                    new_routing_tables.append(RoutingTable(
+                        device=device,
+                        destiny=t.get("destino", ""),
+                        destiny_mask=t.get("destinoMascara", ""),
+                        jump=t.get("salto", ""),
+                    ))
 
         Interface.objects.bulk_create(new_interfaces)
         RoutingTable.objects.bulk_create(new_routing_tables)
@@ -211,3 +266,4 @@ class NetworkView(APIView):
                 "message": "Red actualizada correctamente"
             }
         }, status=status.HTTP_201_CREATED)
+
